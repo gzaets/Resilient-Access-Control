@@ -1,0 +1,24 @@
+# === Core runtime ===
+python-dotenv==1.1.0
+networkx==3.4.2
+flask==3.1.0
+flask-cors~=4.0
+uvicorn[standard]~=0.29
+# === Async networking & HTTP ===
+aiohttp~=3.9
+requests~=2.32
+# === Data storage / persistence ===
+SQLAlchemy~=2.0
+aiosqlite~=0.20
+# === Visualization / CLI ===
+rich~=13.7
+pyvis~=0.3
+# === Dev / testing ===
+pytest~=8.1
+pytest-asyncio~=0.23
+black~=24.4
+ruff~=0.4
+# Keep modern cryptography
+cryptography==39.0.2
+
+msgpack==1.0.5

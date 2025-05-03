@@ -1,0 +1,28 @@
+services:
+  node1:
+    build: .
+    environment:
+      NODE_ID: node1
+      PEERS: node2,node3
+      RAFT_PORT: 10000
+    ports:
+      - "5001:5000"     # Flask
+      - "11001:10000"   # Raft
+  node2:
+    build: .
+    environment:
+      NODE_ID: node2
+      PEERS: node1,node3
+      RAFT_PORT: 10000
+    ports:
+      - "5002:5000"
+      - "11002:10000"
+  node3:
+    build: .
+    environment:
+      NODE_ID: node3
+      PEERS: node1,node2
+      RAFT_PORT: 10000
+    ports:
+      - "5003:5000"
+      - "11003:10000"
