@@ -77,6 +77,6 @@ cd resilient-access-control
 
 ## Contributors
 
-- **Zeerak Babar** – zebabar@ucdavis.edu
-- **Anant Vishwakarma** – abvishwakarma@ucdavis.edu
-- **Georgy Zaets** – gzaets@ucdavis.edu
+- **Zeerak Babar**
+- **Anant Vishwakarma**
+- **Georgy Zaets**
