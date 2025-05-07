@@ -1,4 +1,13 @@
 # src/api/routes.py
+"""
+    Summary of the module:
+    - This module defines the API routes for a Flask application.
+    - It includes a blueprint for the API and sets up routes for adding subjects and dumping the graph.
+    - It also includes a mechanism to keep the graph in sync with a Raft-based replicated store.
+    - The graph is represented as an in-memory object and is periodically synchronized with the replicated store.
+    - The module uses Flask for routing and asyncio for asynchronous tasks.
+    - The `SPMGraph` class is used to represent the graph structure and provides methods for adding subjects and converting to/from a dictionary representation.
+"""
 from flask import Blueprint, request, jsonify
 from core.spm import SPMGraph
 import raftos, asyncio

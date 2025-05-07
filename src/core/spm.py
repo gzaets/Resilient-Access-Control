@@ -1,9 +1,19 @@
 # src/core/spm.py
 """
-Minimal SPM Graph engine.
-Uses NetworkX DiGraph where:
-  - Nodes are dicts with {"type": "subject" | "object"}
-  - Edges carry a set of rights: {"read", "write", "take", "grant"}
+    Summary of the module:
+    - This module implements a minimal SPM Graph engine.
+    - It uses NetworkX's DiGraph to represent the graph structure.
+    - Nodes in the graph are represented as dictionaries with a "type" key indicating whether they are a subject or an object.
+    - Edges in the graph carry a set of rights, which can include "read", "write", "take", and "grant".
+    - The module provides methods to add subjects and objects, grant and take rights, and check if a right exists.
+    - It also includes a method to serialize the graph to a dictionary format for JSON serialization.
+    - The graph is designed to be used in a distributed system, with the ability to replicate its state using Raft consensus.
+    - The `SPMGraph` class provides the main functionality for managing the graph and its rights.
+
+    Minimal SPM Graph engine.
+    Uses NetworkX DiGraph where:
+    - Nodes are dicts with {"type": "subject" | "object"}
+    - Edges carry a set of rights: {"read", "write", "take", "grant"}
 """
 
 import networkx as nx
