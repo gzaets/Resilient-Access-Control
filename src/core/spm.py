@@ -3,6 +3,8 @@
     Summary of the module:
     - This module implements a minimal SPM Graph engine.
     - It uses NetworkX's DiGraph to represent the graph structure.
+        - NetworkX is a Python library for the creation, manipulation, and study of complex networks.
+        - We use it to create directed graphs (DiGraph) where edges have direction.
     - Nodes in the graph are represented as dictionaries with a "type" key indicating whether they are a subject or an object.
     - Edges in the graph carry a set of rights, which can include "read", "write", "take", and "grant".
     - The module provides methods to add subjects and objects, grant and take rights, and check if a right exists.

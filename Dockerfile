@@ -1,3 +1,10 @@
+# Root directory of the repository
+
+# Dockerfile for a Python application using raftos
+# This Dockerfile is designed to build a Docker for our repository
+# It installs the necessary dependencies, including raftos, and applies a patch to make it compatible with modern cryptography versions.
+# Dependencies can be found in requirements-main.txt
+
 FROM python:3.10-slim
 WORKDIR /src
 

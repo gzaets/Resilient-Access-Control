@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#patch_raftos.py in the root directory
 """
 Patch script to make raftos work with modern cryptography versions.
 This script modifies the raftos package to remove its dependency on
