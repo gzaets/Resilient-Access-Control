@@ -1,51 +1,29 @@
-# src/api/routes.py
-"""
-Flask API endpoints + replication glue using pysyncobj.
-We store the whole SPM graph under the replicated key 'graph'.
-"""
+# ────────────── src/api/routes.py (PySyncObj version) ──────────────
+from flask import Blueprint, request, jsonify
 
-import asyncio, json
-from flask import Blueprint, jsonify, request
-
-from core.spm import SPMGraph
-from raft.node import init_raft_from_env
-
-bp          = Blueprint("api", __name__)
-raft_node   = init_raft_from_env()       # global singleton
-graph       = SPMGraph()                 # local in-memory copy
+bp = Blueprint("api", __name__)
+_cluster = None          # will be injected from app.main
 
 
-# ---------- helpers -------------------------------------------------------
-async def _pull_graph_from_cluster():
-    """Fetch latest replicated graph every second."""
-    while True:
-        data = raft_node.get("graph")
-        if data:
-            global graph
-            graph = SPMGraph.from_dict(data)
-        await asyncio.sleep(1)
+def register_routes(app, cluster):
+    """Attach routes and save the cluster reference."""
+    global _cluster
+    _cluster = cluster
+    app.register_blueprint(bp)
 
 
-asyncio.get_event_loop().create_task(_pull_graph_from_cluster())
-
-
-def _push_graph():
-    """Replicate local graph -> cluster."""
-    raft_node.put("graph", graph.to_dict())
-
-
-# ---------- routes --------------------------------------------------------
+# ---------- routes ----------
 @bp.post("/subject")
 def add_subject():
     sid = request.json.get("id")
     if not sid:
         return {"error": "missing id"}, 400
 
-    graph.add_subject(sid)
-    _push_graph()
+    # replicated: blocks until the entry is committed
+    _cluster.add_subject(sid, sync=True)
     return {"status": "ok", "id": sid}, 201
 
 
 @bp.get("/graph")
 def dump_graph():
-    return jsonify(graph.to_dict())
+    return jsonify(_cluster.dump_graph())

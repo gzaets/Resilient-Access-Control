@@ -1,71 +1,33 @@
-# src/raft/node.py
-"""
-PySyncObj wrapper used by the whole app.
-
-* Creates one global replicated key-value store (`raft.kv`)
-* Exposes replicated put()/get() helpers for other modules
-* Starts a background onTick() task so PySyncObj makes progress
-"""
-
-from __future__ import annotations
-
-import asyncio, json, os
-from typing import List
-
-from pysyncobj import SyncObj, SyncObjConf, replicated
-from pysyncobj.batteries import ReplDict
+# ────────────── src/raft/node.py (PySyncObj version) ──────────────
+from pysyncobj import SyncObj, replicated
+from src.core.spm import SPMGraph
 
 
-class RACNode(SyncObj):
-    """Replicated key–value store (string → string) for RAC-NAS."""
+class GraphCluster(SyncObj):
+    """
+    A replicated wrapper around SPMGraph.
+    All mutating methods are marked @replicated so they
+    are appended to the Raft log and executed on every node.
+    """
 
-    def __init__(self, self_addr: str, partner_addrs: List[str]):
-        self.kv: ReplDict[str, str] = ReplDict()
-        conf = SyncObjConf(autoTick=False)  # we tick manually in an asyncio task
-        super().__init__(self_addr, partner_addrs, consumers=[self.kv], conf=conf)
+    def __init__(self, self_addr: str, partner_addrs: list[str]) -> None:
+        super().__init__(self_addr, partner_addrs)
+        self._graph = SPMGraph()
 
-    # ---------- replicated ops ----------
+    # ---------- replicated mutations ----------
     @replicated
-    def _put(self, k: str, v: str) -> None:
-        self.kv[k] = v
+    def add_subject(self, sid: str) -> None:
+        self._graph.add_subject(sid)
 
-    # ---------- public helpers ----------
-    def put(self, k: str, v: dict) -> None:
-        """Replicate any JSON-serialisable dict."""
-        self._put(k, json.dumps(v))
-
-    def get(self, k: str, default=None):
-        v = self.kv.get(k, None)
-        if v is None:
-            return default
-        return json.loads(v)
+    # ---------- local helpers ----------
+    def dump_graph(self) -> dict:
+        """Return a JSON-serialisable view of the current graph."""
+        return self._graph.to_dict()
 
 
-# ---- global singleton ----------------------------------------------------
-_raft: RACNode | None = None
-
-
-def init_raft_from_env() -> RACNode:
+def setup_cluster(self_addr: str, partner_addrs: list[str]) -> GraphCluster:
     """
-    Initialise the singleton RACNode from ENV:
-
-    * SELF_ADDR  – this node's addr,  e.g.  node1:4321
-    * PARTNERS   – comma-separated partner addrs (may be empty)
+    Initialise the PySyncObj cluster and return the cluster object
+    so the REST layer can call replicated methods on it.
     """
-    global _raft
-    if _raft:
-        return _raft
-
-    self_addr = os.getenv("SELF_ADDR", "node1:4321")
-    partners  = [p for p in os.getenv("PARTNERS", "").split(",") if p]
-    _raft = RACNode(self_addr, partners)
-
-    # background ticker so PySyncObj progresses inside asyncio loop
-    async def _ticker():
-        while True:
-            _raft.onTick()
-            await asyncio.sleep(0.05)
-
-    asyncio.get_event_loop().create_task(_ticker())
-    print(f"[RAFT] self={self_addr}, partners={partners}")
-    return _raft
+    return GraphCluster(self_addr, partner_addrs)

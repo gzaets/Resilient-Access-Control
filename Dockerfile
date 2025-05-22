@@ -1,6 +1,9 @@
 FROM python:3.11-slim
 
 WORKDIR /app
+
+ENV PYTHONPATH=/app
+
 COPY requirements-main.txt .
 RUN pip install --no-cache-dir -r requirements-main.txt
 
