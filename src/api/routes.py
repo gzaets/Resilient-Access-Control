@@ -1,37 +1,40 @@
 # src/api/routes.py
 """
-    Summary of the module:
-    - This module defines the API routes for a Flask application.
-    - It includes a blueprint for the API and sets up routes for adding subjects and dumping the graph.
-    - It also includes a mechanism to keep the graph in sync with a Raft-based replicated store.
-    - The graph is represented as an in-memory object and is periodically synchronized with the replicated store.
-    - The module uses Flask for routing and asyncio for asynchronous tasks.
-    - The `SPMGraph` class is used to represent the graph structure and provides methods for adding subjects and converting to/from a dictionary representation.
+Flask API endpoints + replication glue using pysyncobj.
+We store the whole SPM graph under the replicated key 'graph'.
 """
-from flask import Blueprint, request, jsonify
+
+import asyncio, json
+from flask import Blueprint, jsonify, request
+
 from core.spm import SPMGraph
-import raftos, asyncio
+from raft.node import init_raft_from_env
 
-bp     = Blueprint("api", __name__)
-graph  = SPMGraph()                      # local in‑memory
-gstore = raftos.Replicated(name="graph") # one Raft key for the whole graph
+bp          = Blueprint("api", __name__)
+raft_node   = init_raft_from_env()       # global singleton
+graph       = SPMGraph()                 # local in-memory copy
 
-def register_routes(app):
-    app.register_blueprint(bp)
 
-# ---------- helper to keep replicas fresh ----------
-async def _sync_to_local():
-    gdict = await gstore.get(default=None)
-    if gdict:
-        global graph
-        graph = SPMGraph.from_dict(gdict)
+# ---------- helpers -------------------------------------------------------
+async def _pull_graph_from_cluster():
+    """Fetch latest replicated graph every second."""
+    while True:
+        data = raft_node.get("graph")
+        if data:
+            global graph
+            graph = SPMGraph.from_dict(data)
+        await asyncio.sleep(1)
 
-# Poll every second
-asyncio.get_event_loop().create_task(
-    raftos.utils.schedule(_sync_to_local, interval=1)
-)
 
-# ---------- routes ----------
+asyncio.get_event_loop().create_task(_pull_graph_from_cluster())
+
+
+def _push_graph():
+    """Replicate local graph -> cluster."""
+    raft_node.put("graph", graph.to_dict())
+
+
+# ---------- routes --------------------------------------------------------
 @bp.post("/subject")
 def add_subject():
     sid = request.json.get("id")
@@ -39,9 +42,7 @@ def add_subject():
         return {"error": "missing id"}, 400
 
     graph.add_subject(sid)
-
-    # replicate
-    asyncio.get_event_loop().create_task(gstore.set(graph.to_dict()))
+    _push_graph()
     return {"status": "ok", "id": sid}, 201
 
 
