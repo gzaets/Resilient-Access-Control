@@ -19,6 +19,18 @@ class GraphCluster(SyncObj):
     def add_subject(self, sid: str) -> None:
         self._graph.add_subject(sid)
 
+    @replicated
+    def delete_subject(self, sid: str) -> None:
+        self._graph.delete_subject(sid)
+
+    @replicated
+    def delete_object(self, oid: str) -> None:
+        self._graph.delete_object(oid)
+
+    @replicated
+    def assign_right(self, src: str, dst: str, right: str) -> bool:
+        return self._graph.assign_right(src, dst, right)
+
     # ---------- local helpers ----------
     def dump_graph(self) -> dict:
         """Return a JSON-serialisable view of the current graph."""

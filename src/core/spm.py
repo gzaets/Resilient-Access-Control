@@ -46,6 +46,26 @@ class SPMGraph:
             and right in self.g[src][dst].get("rights", set())
         )
 
+    # ---------- deletion helpers ----------
+    def delete_subject(self, sid: str) -> None:
+        """Delete a subject and all its associated edges."""
+        if self.g.has_node(sid) and self.g.nodes[sid]["type"] == "subject":
+            self.g.remove_node(sid)
+
+    def delete_object(self, oid: str) -> None:
+        """Delete an object and all its associated edges."""
+        if self.g.has_node(oid) and self.g.nodes[oid]["type"] == "object":
+            self.g.remove_node(oid)
+
+    # ---------- rights assignment ----------
+    def assign_right(self, src: str, dst: str, right: str) -> bool:
+        """Assign a right directly between a subject and an object."""
+        if right not in RIGHTS:
+            return False
+        self._ensure_edge(src, dst)
+        self.g[src][dst]["rights"].add(right)
+        return True
+
     # ---------- serialisation ----------
     def to_dict(self) -> dict:
         return {
