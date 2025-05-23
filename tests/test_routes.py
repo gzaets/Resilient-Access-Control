@@ -1,13 +1,14 @@
 import pytest
 from flask import Flask
+from unittest.mock import MagicMock
 from src.api.routes import register_routes
-from src.raft.node import GraphCluster
 
 @pytest.fixture
 def client():
     app = Flask(__name__)
-    cluster = GraphCluster("node1:4321", [])
-    register_routes(app, cluster)
+    # Mock the GraphCluster
+    mock_cluster = MagicMock()
+    register_routes(app, mock_cluster)
     with app.test_client() as client:
         yield client
 

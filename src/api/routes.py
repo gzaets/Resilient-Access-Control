@@ -46,6 +46,11 @@ def assign_right():
     if not src or not dst or not right:
         return {"error": "missing parameters"}, 400
 
+    # Validate the right parameter
+    valid_rights = {"read", "write", "execute"}  # Example valid rights
+    if right not in valid_rights:
+        return {"error": "invalid operation"}, 400
+
     if _cluster.assign_right(src, dst, right, sync=True):
         return {"status": "ok", "src": src, "dst": dst, "right": right}, 201
     return {"error": "invalid operation"}, 400
