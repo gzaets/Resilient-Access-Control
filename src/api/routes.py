@@ -23,6 +23,15 @@ def add_subject():
     _cluster.add_subject(sid, sync=True)
     return {"status": "ok", "id": sid}, 201
 
+@bp.post("/object")
+def add_object():
+    oid = request.json.get("id")
+    if not oid:
+        return {"error": "missing id"}, 400
+
+    _cluster.add_object(oid, sync=True)
+    return {"status": "ok", "id": oid}, 201
+
 
 @bp.delete("/subject/<sid>")
 def delete_subject(sid):
@@ -59,3 +68,18 @@ def assign_right():
 @bp.get("/graph")
 def dump_graph():
     return jsonify(_cluster.dump_graph())
+
+
+@bp.post("/write")
+def write_to_file():
+    data = request.json
+    sid = data.get("subject")
+    oid = data.get("object")
+    content = data.get("content")
+
+    if not sid or not oid or not content:
+        return {"error": "missing parameters"}, 400
+
+    if _cluster.write_to_object(sid, oid, content, sync=True):
+        return {"status": "written", "object": oid}, 200
+    return {"error": "write denied or failed"}, 403

@@ -18,6 +18,10 @@ class GraphCluster(SyncObj):
     @replicated
     def add_subject(self, sid: str) -> None:
         self._graph.add_subject(sid)
+    
+    @replicated
+    def add_object(self, oid: str) -> None:
+        self._graph.add_object(oid)
 
     @replicated
     def delete_subject(self, sid: str) -> None:
@@ -35,6 +39,10 @@ class GraphCluster(SyncObj):
     def dump_graph(self) -> dict:
         """Return a JSON-serialisable view of the current graph."""
         return self._graph.to_dict()
+    
+    @replicated
+    def write_to_object(self, sid: str, oid: str, content: str) -> bool:
+        return self._graph.write_to_object(sid, oid, content)
 
 
 def setup_cluster(self_addr: str, partner_addrs: list[str]) -> GraphCluster:
