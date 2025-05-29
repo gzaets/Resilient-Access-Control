@@ -28,10 +28,12 @@ sleep 5
 echo "📤 Creating subject 'alice' on node1..."
 curl -s -X POST http://localhost:5001/subject \
   -H 'Content-Type: application/json' \
-  -d '{"id": "alice"}' | jq .
+  -d '{"id": "alice"}' 
+  # | jq .
 
 echo "🔄 Verifying graph replication across nodes:"
 for n in 1 2 3; do
   echo "Node $n:"
-  curl -s http://localhost:500${n}/graph | jq .
+  curl -s http://localhost:500${n}/graph 
+  # | jq .
 done

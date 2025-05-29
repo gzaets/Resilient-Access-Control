@@ -1,5 +1,6 @@
 # ────────────── src/core/spm.py ──────────────
 import networkx as nx
+import os
 
 RIGHTS = {"read", "write", "take", "grant"}
 
@@ -11,9 +12,15 @@ class SPMGraph:
     # ---------- node helpers ----------
     def add_subject(self, sid: str) -> None:
         self.g.add_node(sid, type="subject")
-
+    
     def add_object(self, oid: str) -> None:
         self.g.add_node(oid, type="object")
+        file_path = os.path.join("storage", oid)
+        if not os.path.exists("storage"):
+            os.makedirs("storage")
+        if not os.path.isfile(file_path):
+            with open(file_path, "w") as f:
+                f.write(f"Created file for object: {oid}\n")
 
     # ---------- rights helpers ----------
     def _ensure_edge(self, src, dst):
@@ -86,3 +93,13 @@ class SPMGraph:
         for edge in data.get("edges", []):
             g.g.add_edge(edge["src"], edge["dst"], rights=set(edge["rights"]))
         return g
+    
+    def write_to_object(self, sid: str, oid: str, content: str) -> bool:
+        if not self.has_right(sid, oid, "write"):
+            return False
+        file_path = os.path.join("storage", oid)
+        if not os.path.isfile(file_path):
+            return False
+        with open(file_path, "a") as f:
+            f.write(content + "\n")
+        return True
