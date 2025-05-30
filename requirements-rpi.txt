@@ -1,0 +1,13 @@
+# Raspberry Pi specific requirements for RAC-NAS
+# These are additional packages needed for the Raspberry Pi deployment manager
+
+# SSH and remote management
+paramiko>=3.0.0
+
+# HTTP requests for API testing
+requests>=2.28.0
+
+# Core dependencies (should already be in requirements-main.txt)
+flask>=2.0.0
+pysyncobj>=0.3.12
+networkx>=2.8

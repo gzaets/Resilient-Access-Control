@@ -154,6 +154,171 @@ To stop and remove the running nodes and network, use the `cleanup_rac_nodes.sh`
 
 This will remove all containers and the custom Docker network created during deployment.
 
+---
+
+## Raspberry Pi Deployment
+
+### Prerequisites for Raspberry Pi Cluster
+
+Before deploying to physical Raspberry Pi devices, ensure:
+
+- **3-5 Raspberry Pi devices** (Pi 3 or 4 recommended) running Raspbian OS
+- **SSH access enabled** on all Raspberry Pis
+- **Network connectivity** between all devices
+- **SSH key-based authentication** set up for passwordless access
+
+### 1. Prepare Your Raspberry Pis
+
+On each Raspberry Pi, enable SSH and install basic dependencies:
+
+```bash
+# Enable SSH (if not already enabled)
+sudo systemctl enable ssh
+sudo systemctl start ssh
+
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Python and pip
+sudo apt install -y python3 python3-pip git
+```
+
+### 2. Set Up SSH Key Authentication
+
+From your control machine (laptop/PC), set up SSH keys:
+
+```bash
+# Generate SSH key if you don't have one
+ssh-keygen -t rsa -b 4096
+
+# Copy public key to each Raspberry Pi
+ssh-copy-id pi@192.168.1.101  # Replace with actual IP
+ssh-copy-id pi@192.168.1.102
+ssh-copy-id pi@192.168.1.103
+```
+
+### 3. Configure the Cluster
+
+Install Raspberry Pi deployment dependencies:
+
+```bash
+pip3 install -r requirements-rpi.txt
+```
+
+Create and edit the cluster configuration:
+
+```bash
+# This will create a sample configuration file
+python3 rpi_deployment.py --action deploy --config rpi_cluster.json
+
+# Edit the generated rpi_cluster_sample.json with your Raspberry Pi details
+cp rpi_cluster_sample.json rpi_cluster.json
+# Edit rpi_cluster.json with your actual IP addresses
+```
+
+Example `rpi_cluster.json`:
+```json
+{
+  "username": "pi",
+  "ssh_key_path": "~/.ssh/id_rsa",
+  "remote_project_path": "/home/pi/Resilient-Access-Control",
+  "nodes": {
+    "rpi-node-1": {
+      "ip": "192.168.1.101",
+      "port": 4321,
+      "api_port": 5001,
+      "role": "leader"
+    },
+    "rpi-node-2": {
+      "ip": "192.168.1.102",
+      "port": 4321,
+      "api_port": 5002,
+      "role": "follower"
+    },
+    "rpi-node-3": {
+      "ip": "192.168.1.103",
+      "port": 4321,
+      "api_port": 5003,
+      "role": "follower"
+    }
+  }
+}
+```
+
+### 4. Deploy to Raspberry Pi Cluster
+
+Use the automated setup script:
+
+```bash
+chmod +x setup_rpi_cluster.sh
+./setup_rpi_cluster.sh
+```
+
+Or manually deploy step by step:
+
+```bash
+# Deploy code and dependencies to all Raspberry Pis
+python3 rpi_deployment.py --action deploy
+
+# Start the cluster
+python3 rpi_deployment.py --action start-cluster
+
+# Check cluster status
+python3 rpi_deployment.py --action status
+
+# Run functionality tests
+python3 rpi_deployment.py --action test
+```
+
+### 5. Test the Raspberry Pi Cluster
+
+Run the cluster test script:
+
+```bash
+chmod +x test_rpi_cluster.sh
+./test_rpi_cluster.sh
+```
+
+Or test manually using the API endpoints with your Raspberry Pi IPs:
+
+```bash
+# Add a subject
+curl -X POST http://192.168.1.101:5001/subject \
+     -H 'Content-Type: application/json' \
+     -d '{"id": "pi_user"}'
+
+# Check graph replication across nodes
+curl http://192.168.1.101:5001/graph
+curl http://192.168.1.102:5002/graph
+curl http://192.168.1.103:5003/graph
+```
+
+### 6. Management Commands
+
+```bash
+# Check cluster status
+python3 rpi_deployment.py --action status
+
+# Stop the cluster
+python3 rpi_deployment.py --action stop-cluster
+
+# Restart the cluster
+python3 rpi_deployment.py --action start-cluster
+
+# Run tests
+python3 rpi_deployment.py --action test
+```
+
+### Raspberry Pi Specific Features
+
+- **Automatic deployment** across multiple physical devices
+- **SSH-based management** for remote configuration
+- **Health monitoring** and status checking
+- **File synchronization** using rsync
+- **Process management** for starting/stopping nodes
+- **Network discovery** and cluster formation
+
+---
 
 ## What This Repository Does
 
