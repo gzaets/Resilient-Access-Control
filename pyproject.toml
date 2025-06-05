@@ -1,0 +1,21 @@
+# pytest configuration for Resilient Access Control tests
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_paths = ["."]
+addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PytestDeprecationWarning"
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*", "venv/*", "*.egg-info/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError"
+]
