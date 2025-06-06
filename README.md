@@ -114,7 +114,7 @@ Each node maintains:
 
 ## Hardware Requirements
 
-- 3–5 Raspberry Pi 3 or 4 devices (1GB+ RAM, 16GB+ microSD cards)
+- 3–5 Raspberry Pi 4 or 5 devices (4GB+ RAM, 32GB+ microSD cards)
 - Power supplies, Ethernet or Wi-Fi
 - Network switch or router
 - Optional: Host laptop/PC for visualization and orchestration
