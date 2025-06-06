@@ -136,13 +136,64 @@ The system exposes a REST API for managing subjects, objects, and access rights.
 
 ### 5. Run Tests
 
-The repository includes unit tests for the core functionality and API routes. To run the tests, use `pytest`:
+The repository includes unit tests for the core functionality, API routes, distributed consistency, and node failure scenarios. To run all tests, use the provided `run_tests.sh` script:
 
 ```bash
-pytest tests/
+chmod +x run_tests.sh
+./run_tests.sh
 ```
 
-This will execute all tests in the `tests/` directory, ensuring that the SPM logic and API endpoints behave as expected.
+This script will:
+- Set up the environment for testing.
+- Execute all tests in the `tests/` directory using `pytest`.
+- Display a summary of test results.
+
+#### Test Files
+
+The following test files provide comprehensive coverage of system functionality:
+
+- **`test_routes.py`** (4 tests): Tests REST API endpoints for subjects, objects, and rights
+- **`test_spm.py`** (4 tests): Validates core SPMGraph functionality  
+- **`test_unauthorized_access.py`** (5 tests): Ensures access control enforcement
+- **`test_file_operations.py`** (7 tests): Tests file system integration and permission enforcement
+- **`test_permission_inheritance.py`** (6 tests): Validates advanced permission inheritance concepts
+- **`test_edge_cases.py`** (10 tests): Covers edge cases and error handling
+- **`test_distributed_consistency.py`** (5 tests): Tests distributed consistency across nodes
+- **`test_node_failures.py`** (8 tests): Validates resilience under node failures
+
+**Total: 49 comprehensive tests covering all aspects of the RAC-NAS system.**
+
+#### Test Coverage Details
+
+- **🔐 Access Control**: Validates SPM-based permission enforcement
+- **🌐 API Endpoints**: Tests all REST API functionality  
+- **📂 File Operations**: Ensures file system integration works correctly
+- **🔄 Distributed Logic**: Tests Raft consensus and node synchronization
+- **⚠️ Edge Cases**: Handles invalid inputs, race conditions, and error scenarios
+- **🛡️ Resilience**: Tests system behavior under node failures and network partitions
+- **🎯 Permission Inheritance**: Advanced SPM grant/take operations
+
+#### Example Test Run
+
+To run a specific test file:
+
+```bash
+pytest tests/test_routes.py -v
+```
+
+To run a specific test case:
+
+```bash
+pytest tests/test_routes.py::test_add_subject -v
+```
+
+To run tests with coverage report:
+
+```bash
+pytest tests/ --cov=src --cov-report=html
+```
+
+For complete testing with detailed output, use the `run_tests.sh` script as described above.
 
 ### 6. Clean Up
 
@@ -154,6 +205,339 @@ To stop and remove the running nodes and network, use the `cleanup_rac_nodes.sh`
 
 This will remove all containers and the custom Docker network created during deployment.
 
+---
+
+## Raspberry Pi Deployment
+
+### Prerequisites for Raspberry Pi Cluster
+
+Before deploying to physical Raspberry Pi devices, ensure:
+
+- **3-5 Raspberry Pi devices** (Pi 3 or 4 recommended) running Raspbian OS
+- **SSH access enabled** on all Raspberry Pis
+- **Network connectivity** between all devices
+- **SSH key-based authentication** set up for passwordless access
+
+### 1. Prepare Your Raspberry Pis
+
+On each Raspberry Pi, enable SSH and install basic dependencies:
+
+```bash
+# Enable SSH (if not already enabled)
+sudo systemctl enable ssh
+sudo systemctl start ssh
+
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Python and pip
+sudo apt install -y python3 python3-pip git
+```
+
+### 2. Set Up SSH Key Authentication
+
+From your control machine (laptop/PC), set up SSH keys:
+
+```bash
+# Generate SSH key if you don't have one
+ssh-keygen -t rsa -b 4096
+
+# Copy public key to each Raspberry Pi
+ssh-copy-id pi@192.168.1.101  # Replace with actual IP
+ssh-copy-id pi@192.168.1.102
+ssh-copy-id pi@192.168.1.103
+```
+
+### 3. Configure the Cluster
+
+Install Python dependencies on each Raspberry Pi:
+
+```bash
+# On each Raspberry Pi, install required packages
+pip3 install flask networkx pysyncobj requests pytest
+
+# Or install from requirements if available
+pip3 install -r requirements.txt
+```
+
+Create a cluster configuration file on your control machine:
+
+```bash
+# Create cluster configuration
+nano rpi_cluster_config.json
+```
+
+Example `rpi_cluster_config.json`:
+```json
+{
+  "nodes": [
+    {
+      "id": "rpi-node-1",
+      "ip": "192.168.1.101",
+      "port": 4321,
+      "api_port": 5001,
+      "role": "leader"
+    },
+    {
+      "id": "rpi-node-2", 
+      "ip": "192.168.1.102",
+      "port": 4321,
+      "api_port": 5002,
+      "role": "follower"
+    },
+    {
+      "id": "rpi-node-3",
+      "ip": "192.168.1.103", 
+      "port": 4321,
+      "api_port": 5003,
+      "role": "follower"
+    }
+  ],
+  "username": "pi",
+  "ssh_key_path": "~/.ssh/id_rsa",
+  "project_path": "/home/pi/Resilient-Access-Control"
+}
+```
+
+### 4. Deploy to Raspberry Pi Cluster
+
+Create a deployment script to copy files and start the system:
+
+```bash
+#!/bin/bash
+# deploy_to_rpi.sh
+
+# Configuration
+NODES=("192.168.1.101" "192.168.1.102" "192.168.1.103")
+USERNAME="pi"
+PROJECT_DIR="/home/pi/Resilient-Access-Control"
+
+echo "🚀 Deploying RAC-NAS to Raspberry Pi Cluster"
+echo "=============================================="
+
+# Copy project files to each node
+for i in "${!NODES[@]}"; do
+    NODE=${NODES[$i]}
+    echo "📦 Deploying to node $((i+1)): $NODE"
+    
+    # Copy project files
+    rsync -avz --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' \
+          . $USERNAME@$NODE:$PROJECT_DIR/
+    
+    echo "✅ Deployment to $NODE completed"
+done
+
+echo "🎯 Starting cluster nodes..."
+
+# Start each node
+for i in "${!NODES[@]}"; do
+    NODE=${NODES[$i]}
+    NODE_ID=$((i+1))
+    API_PORT=$((5000+NODE_ID))
+    RAFT_PORT=$((4320+NODE_ID))
+    
+    echo "🔥 Starting node $NODE_ID on $NODE"
+    
+    # Create start command for this node
+    if [ $i -eq 0 ]; then
+        # First node (leader)
+        ssh $USERNAME@$NODE "cd $PROJECT_DIR && nohup python3 -m src.main --node-id node$NODE_ID --api-port $API_PORT --raft-port $RAFT_PORT --leader > node$NODE_ID.log 2>&1 &"
+    else
+        # Follower nodes
+        LEADER_IP=${NODES[0]}
+        ssh $USERNAME@$NODE "cd $PROJECT_DIR && nohup python3 -m src.main --node-id node$NODE_ID --api-port $API_PORT --raft-port $RAFT_PORT --leader-addr $LEADER_IP:4321 > node$NODE_ID.log 2>&1 &"
+    fi
+    
+    sleep 2
+done
+
+echo "✅ Cluster deployment completed!"
+echo ""
+echo "🔍 Verify cluster status:"
+for NODE in "${NODES[@]}"; do
+    echo "  Node $NODE: http://$NODE:$((5000 + ${#NODES[@]}))/graph"
+done
+```
+
+Make the script executable and run it:
+
+```bash
+chmod +x deploy_to_rpi.sh
+./deploy_to_rpi.sh
+```
+
+### 5. Test the Raspberry Pi Cluster
+
+Create a test script for the cluster:
+
+```bash
+#!/bin/bash
+# test_rpi_cluster.sh
+
+NODES=("192.168.1.101:5001" "192.168.1.102:5002" "192.168.1.103:5003")
+
+echo "🧪 Testing RAC-NAS Raspberry Pi Cluster"
+echo "======================================="
+
+# Test 1: Add a subject
+echo "📝 Test 1: Adding subject 'rpi_alice'"
+curl -X POST http://${NODES[0]}/subject \
+     -H 'Content-Type: application/json' \
+     -d '{"id": "rpi_alice"}' \
+     -w "\nStatus: %{http_code}\n"
+
+sleep 1
+
+# Test 2: Add an object  
+echo ""
+echo "📝 Test 2: Adding object 'cluster_file.txt'"
+curl -X POST http://${NODES[1]}/object \
+     -H 'Content-Type: application/json' \
+     -d '{"id": "cluster_file.txt"}' \
+     -w "\nStatus: %{http_code}\n"
+
+sleep 1
+
+# Test 3: Assign rights
+echo ""
+echo "📝 Test 3: Assigning write rights"
+curl -X POST http://${NODES[2]}/assign \
+     -H 'Content-Type: application/json' \
+     -d '{"src": "rpi_alice", "dst": "cluster_file.txt", "right": "write"}' \
+     -w "\nStatus: %{http_code}\n"
+
+sleep 2
+
+# Test 4: Check graph consistency across nodes
+echo ""
+echo "📊 Test 4: Verifying graph consistency across nodes"
+for i in "${!NODES[@]}"; do
+    echo ""
+    echo "--- Node $((i+1)): ${NODES[$i]} ---"
+    curl -s http://${NODES[$i]}/graph | python3 -m json.tool
+done
+
+# Test 5: File operations
+echo ""
+echo "📁 Test 5: Testing file operations"
+curl -X POST http://${NODES[0]}/write \
+     -H 'Content-Type: application/json' \
+     -d '{"subject": "rpi_alice", "object": "cluster_file.txt", "content": "Hello from Raspberry Pi cluster!"}' \
+     -w "\nStatus: %{http_code}\n"
+
+echo ""
+echo "✅ Cluster testing completed!"
+```
+
+Run the cluster test:
+
+```bash
+chmod +x test_rpi_cluster.sh
+./test_rpi_cluster.sh
+```
+
+### 6. Run Unit Tests on Raspberry Pi
+
+You can also run the full test suite on the Raspberry Pi cluster:
+
+```bash
+# Copy and run tests on the leader node
+scp ./run_tests.sh pi@192.168.1.101:/home/pi/Resilient-Access-Control/
+ssh pi@192.168.1.101 "cd /home/pi/Resilient-Access-Control && chmod +x run_tests.sh && ./run_tests.sh"
+```
+
+### 7. Monitor and Manage the Cluster
+
+Create management commands:
+
+```bash
+#!/bin/bash
+# manage_rpi_cluster.sh
+
+NODES=("192.168.1.101" "192.168.1.102" "192.168.1.103")
+USERNAME="pi"
+PROJECT_DIR="/home/pi/Resilient-Access-Control"
+
+case "$1" in
+    "status")
+        echo "🔍 Checking cluster status..."
+        for NODE in "${NODES[@]}"; do
+            echo "Node $NODE:"
+            ssh $USERNAME@$NODE "pgrep -f 'python3.*src.main' && echo '  ✅ Running' || echo '  ❌ Stopped'"
+        done
+        ;;
+    
+    "stop")
+        echo "🛑 Stopping cluster..."
+        for NODE in "${NODES[@]}"; do
+            ssh $USERNAME@$NODE "pkill -f 'python3.*src.main'"
+            echo "  ✅ Stopped $NODE"
+        done
+        ;;
+    
+    "logs")
+        echo "📋 Fetching logs..."
+        for i in "${!NODES[@]}"; do
+            NODE=${NODES[$i]}
+            NODE_ID=$((i+1))
+            echo "--- Node $NODE_ID logs ---"
+            ssh $USERNAME@$NODE "tail -20 $PROJECT_DIR/node$NODE_ID.log"
+        done
+        ;;
+    
+    "restart")
+        echo "🔄 Restarting cluster..."
+        $0 stop
+        sleep 3
+        ./deploy_to_rpi.sh
+        ;;
+    
+    *)
+        echo "Usage: $0 {status|stop|logs|restart}"
+        ;;
+esac
+```
+
+Usage examples:
+
+```bash
+chmod +x manage_rpi_cluster.sh
+
+# Check cluster status
+./manage_rpi_cluster.sh status
+
+# View logs
+./manage_rpi_cluster.sh logs
+
+# Stop cluster
+./manage_rpi_cluster.sh stop
+
+# Restart cluster
+./manage_rpi_cluster.sh restart
+```
+
+### Raspberry Pi Specific Features
+
+- **🔌 Automatic deployment** across multiple physical devices via SSH
+- **📡 Network-based communication** between Raspberry Pi nodes
+- **🔍 Remote monitoring** and status checking
+- **📦 File synchronization** using rsync for code deployment
+- **⚙️ Process management** for starting/stopping nodes remotely
+- **🧪 Distributed testing** to verify cluster functionality
+- **📊 Real-time graph replication** across physical hardware
+- **🛡️ Fault tolerance** testing with actual node disconnections
+
+### Performance Considerations for Raspberry Pi
+
+- **Memory**: Each node requires ~50-100MB RAM for the Python process
+- **Network**: Raft consensus requires stable network connectivity
+- **Storage**: File operations will use local storage on each Pi
+- **CPU**: Graph operations are lightweight but consensus can be CPU-intensive
+- **Latency**: Network latency between Pis affects consensus performance
+
+Your Raspberry Pi cluster will provide a realistic distributed environment for testing the RAC-NAS system's fault tolerance and consistency guarantees!
+
+---
 
 ## What This Repository Does
 
